@@ -1,0 +1,142 @@
+#!/usr/bin/ruby -w
+
+require 'yaml'
+
+# Settings
+@output_file = './schema.sql'
+@directory = './'
+@template_file = './template.yml'
+
+#
+# Main runloop of the app.  This is called after processing 
+# of the arguments.
+#
+def main
+  
+  # Load the config
+  template = YAML.load_file(@template_file) unless defined? TEMPLATE
+  puts "DEBUG: Loaded yaml file: #{@template_file}"
+  
+  # Load files into array
+  migrations = []
+  sql_files = File.join @directory, '*.sql'
+  Dir.glob(sql_files) do |f|
+    if File.basename(f, ".sql") == File.basename(@output_file, ".sql")
+      next
+    end
+    migrations.push f
+  end
+  puts "DEBUG: Loaded #{migrations.length} migration files."
+  
+  # Check if the output exists, moving it if not
+  if File.exists? @output_file
+    new_name = @output_file + ".old"
+    File.rename(@output_file, new_name)
+  end
+  
+  # Iterate files in order, writing 
+  # contents to output using template
+  file = File.new @output_file, 'w+'
+  
+  # Write the header comment
+  date = Time.now
+  file.puts eval('"' + template['header'] + '"')
+  file.puts ''
+  
+  # Write the schema table generation code
+  file.puts template['schema_table']
+  file.puts ''
+  
+  # Iterate migrations and add them to the script
+  migrations.each do |m|
+    f = File.new m, 'r'
+    migration = template['migration']
+    
+    # Set up the local variables for the template substitution
+    name = File.basename m, ".sql"
+    content = ''
+    while line = f.gets
+      content += line
+    end
+    
+    # Evaluate the string to offer variable substitution
+    schema_table_insert = eval('"' + template['schema_table_insert'] + '"')
+    migration = eval('"' + migration + '"')
+    
+    file.puts "\n"
+    file.puts migration
+    file.puts "\n"
+    
+    puts "Wrote migration #{m} to #{@output_file}"
+  end
+end
+
+def version
+  'version 1.0 by Ryan Harter <ryan.harter@lextech.com'
+end
+
+def print_usage
+  puts version
+  puts ''
+  puts 'Generates SQL scripts from migration files.'
+  puts ''
+  puts 'Usage:'
+  puts '  migrate [options]'
+  puts ''
+  puts 'Options:'
+  puts ''
+  puts '  -f <name>, --file <name>        The name of the file to write the master'
+  puts '                                  Schema [Default: ./schema.sql]'
+  puts '  -d <path>, --directory <path>   The location of the migration files to'
+  puts '                                  process [Default: ./]'
+  puts '  -t <path>, --template <path>    Use to specify the location of the template'
+  puts '                                  file. [Default: ./template.yml]'
+  puts '  -v, --version                   Displays script version information'
+  puts '  -h, --help                      Print this help text'
+end
+
+
+#
+# Main Entry
+#
+
+# Process arguments
+@set_file = false
+@set_directory = false
+@set_template = false
+
+@do_version = false
+@do_help = false
+
+if ARGV.length != 0
+  ARGV.each do |a|
+    case a
+    when '-f', '--file'
+      @set_file = true
+    when '-d', '--directory'
+      @set_directory = true
+    when  '-t', '--template'
+      @set_template = true
+    when '-v', '--version'
+      puts version
+      exit 0
+    when '-h', '--help'
+      print_usage
+      exit 0
+    else
+      if @set_file
+        @output_file = "#{a}"
+      elsif @set_directory
+        @directory = "#{a}"
+      elsif @set_template
+        @template = "#{a}"
+      else
+        puts "Error: Unknown option '#{a}'"
+        print_usage
+        exit 1
+      end
+    end
+  end
+end
+
+main
