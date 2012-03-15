@@ -1,11 +1,12 @@
 #!/usr/bin/ruby -w
+$LOAD_PATH.unshift( File.join( File.dirname(__FILE__), 'lib' ) )
 
-require 'yaml'
+require 'RTL'
 
 # Settings
 @output_file = './schema.sql'
 @directory = './'
-@template_file = './template.yml'
+@template_file = './template.rtl'
 
 #
 # Main runloop of the app.  This is called after processing 
@@ -14,19 +15,38 @@ require 'yaml'
 def main
   
   # Load the config
-  template = YAML.load_file(@template_file) unless defined? TEMPLATE
-  puts "DEBUG: Loaded yaml file: #{@template_file}"
+  puts ''
+  puts "Loading rtl file: #{@template_file}"
+  begin
+    template = RTL.load_file(@template_file) unless defined? TEMPLATE
+  rescue Exception => e
+    puts red "Failed to load file: " + $!
+    exit 1
+  end
+  puts green "Success\n"
   
   # Load files into array
-  migrations = []
-  sql_files = File.join @directory, '*.sql'
-  Dir.glob(sql_files) do |f|
-    if File.basename(f, ".sql") == File.basename(@output_file, ".sql")
-      next
+  puts "Searching for migrations in directory: #{@directory}"
+  begin
+    migrations = []
+    sql_files = File.join @directory, '*.sql'
+    Dir.glob(sql_files) do |f|
+      if File.basename(f, ".sql") == File.basename(@output_file, ".sql")
+        next
+      end
+      puts blue "Adding migration: #{f}"
+      migrations.push f
     end
-    migrations.push f
+  rescue Exception => e
+    puts red "Failed to load migrations: " + $!
+    exit 1
   end
-  puts "DEBUG: Loaded #{migrations.length} migration files."
+  
+  if migrations.length == 0
+    puts red "No migrations found!"
+    exit 1
+  end
+  puts green "Found #{migrations.length} migration files.\n"
   
   # Check if the output exists, moving it if not
   if File.exists? @output_file
@@ -69,10 +89,12 @@ def main
     
     puts "Wrote migration #{m} to #{@output_file}"
   end
+  
+  puts green "Schema compiled to script: #{@output_file}"
 end
 
 def version
-  'version 1.0 by Ryan Harter <ryan.harter@lextech.com'
+  'migrate v1.0 by Ryan Harter <ryan.harter@lextech.com>'
 end
 
 def print_usage
@@ -81,19 +103,26 @@ def print_usage
   puts 'Generates SQL scripts from migration files.'
   puts ''
   puts 'Usage:'
-  puts '  migrate [options]'
+  puts '  migrate [-v] [-h] [-c <name>] [-d <path>] [-f <name>] [-t <path>]'
   puts ''
   puts 'Options:'
-  puts ''
-  puts '  -f <name>, --file <name>        The name of the file to write the master'
-  puts '                                  Schema [Default: ./schema.sql]'
-  puts '  -d <path>, --directory <path>   The location of the migration files to'
-  puts '                                  process [Default: ./]'
-  puts '  -t <path>, --template <path>    Use to specify the location of the template'
-  puts '                                  file. [Default: ./template.yml]'
-  puts '  -v, --version                   Displays script version information'
-  puts '  -h, --help                      Print this help text'
+  puts '  -f <name>, --file <name>      The name of the file to write the master'
+  puts '                                Schema [Default: ./schema.sql]'
+  puts '  -d <path>, --directory <path> The location of the migration files to'
+  puts '                                process [Default: ./]'
+  puts '  -t <path>, --template <path>  Use to specify the location of the template'
+  puts '                                file. [Default: ./template.rtl]'
+  puts '  -v, --version                 Displays script version information'
+  puts '  -h, --help                    Print this help text'
 end
+
+# Helpers
+def colorize(text, color_code)
+  "\e[#{color_code}m#{text}\e[0m"
+end
+def red(text); colorize(text, 31); end
+def green(text); colorize(text, 32); end
+def blue(text); colorize(text, 34); end
 
 
 #
@@ -126,10 +155,13 @@ if ARGV.length != 0
     else
       if @set_file
         @output_file = "#{a}"
+        @set_file = false
       elsif @set_directory
         @directory = "#{a}"
+        @set_directory = false
       elsif @set_template
-        @template = "#{a}"
+        @template_file = "#{a}"
+        @set_template = false
       else
         puts "Error: Unknown option '#{a}'"
         print_usage

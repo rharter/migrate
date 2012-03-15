@@ -13,9 +13,7 @@ header:
 
 # SQL used to generate the Schema tracking table
 schema_table:
- 	DROP TABLE IF EXISTS `MM_Schema_Change`;
-	
-	CREATE TABLE `MM_Schema_Change` (
+	CREATE TABLE IF NOT EXISTS `MM_Schema_Change` (
 		`schema_change_id` bigint(20) NOT NULL,
 		`schema_change_description` varchar(254) NOT NULL,
 		`schema_change_timechanged` timestamp NOT NULL,

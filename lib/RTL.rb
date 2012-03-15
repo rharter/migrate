@@ -24,28 +24,28 @@ module RTL
       # starts with a '\t', add the line to the template,
       # otherwise end the template
       if !cur.empty?
-        if line[0].eql? '\t'
+        if line[0] == 9 # '\t'
           line = line[1..-1]
           ret[cur] += line
+          next
         else
           cur = ''
+          next
         end
-      end
-      
-      # Empty lines are ignored
-      if line.empty?
+      elsif /\S/ !~ line
+        # Empty lines are ignored
         next
-      end
-      
-      # Hashes are ignored
-      if line[0].eql? '#'
+      elsif line[0,1].eql? '#'
+        # Hashes are ignored
         next
-      end
-      
-      if line[line.length - 2].eql? ':'
-        cur = line[0..-2]
+      else
+        # Set the new current template
+        cur = line[0..-3]
+        ret[cur] = ''
       end
     end
+    
+    return ret
   end
   
   def RTL.load(string)
@@ -79,5 +79,7 @@ module RTL
         cur = line[0..-2]
       end
     end
+    
+    return ret
   end
 end
