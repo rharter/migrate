@@ -106,6 +106,8 @@ def print_usage
   puts '  migrate [-v] [-h] [-c <name>] [-d <path>] [-f <name>] [-t <path>]'
   puts ''
   puts 'Options:'
+  puts '  -c <name>, --create <name>    Create a new migration file using the'
+  puts '                                name provided. (Not Implemented Yet)'
   puts '  -f <name>, --file <name>      The name of the file to write the master'
   puts '                                Schema [Default: ./schema.sql]'
   puts '  -d <path>, --directory <path> The location of the migration files to'
